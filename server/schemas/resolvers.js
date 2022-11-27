@@ -1,20 +1,23 @@
-const { School, Class, Professor } = require("../models");
+const { User } = require("../models");
+const { signToken } = require("../utils/auth");
+const { AuthenticationError } = require("apollo-server-express");
 
 const resolvers = {
   Query: {
-    schools: async () => {
-      // Populate the classes and professor subdocuments when querying for schools
-      return await School.find({}).populate("classes").populate({
-        path: "classes",
-        populate: "professor",
-      });
+    me: async (_, __, context) => {
+      if (context.user) {
+        return await User.findOne({ _id: context.user._id }).select(
+          "-__v -password"
+        );
+      }
+      throw new AuthenticationError("User not logged in");
     },
-    classes: async () => {
-      // Populate the professor subdocument when querying for classes
-      return await Class.find({}).populate("professor");
-    },
-    professors: async () => {
-      return await Professor.find({});
+  },
+  Mutation: {
+    addUser: async (_, args) => {
+      const user = await User.create(args);
+      const token = signToken(user);
+      return { token, user };
     },
   },
 };
